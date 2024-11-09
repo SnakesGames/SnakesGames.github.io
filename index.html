@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snakes Mods</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 50px;
+      background-color: #f4f4f4;
+    }
+    .title {
+      font-size: 2em;
+      margin-bottom: 20px;
+    }
+    .search-bar {
+      margin: 20px 0;
+    }
+    .search-bar input[type="text"] {
+      padding: 10px;
+      width: 60%;
+      font-size: 1em;
+    }
+    .discord-button {
+      display: inline-block;
+      margin: 10px;
+      padding: 10px 20px;
+      font-size: 1em;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 5px;
+      background-color: #7289da;
+    }
+    .download-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 20px;
+    }
+    .download-button {
+      display: inline-block;
+      margin: 0 15px;
+      padding: 10px 20px;
+      font-size: 1em;
+      color: #fff;
+      text-decoration: none;
+      background-color: #4CAF50;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    .highlight {
+      background-color: #FFA500;
+    }
+    .status-label {
+      transform: rotate(-45deg);
+      font-size: 0.8em;
+      font-weight: bold;
+      color: white;
+      background-color: #333;
+      padding: 5px;
+      margin-left: 5px;
+      border-radius: 3px;
+    }
+    .outdated { background-color: red; }
+    .new { background-color: green; }
+    .soon { background-color: orange; }
+    iframe {
+      width: 300px;
+      height: 170px;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="title">Snakes Mods</div>
+
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search..." oninput="filterDownloads()">
+  </div>
+
+  <a href="https://discord.gg/snakes-mods" target="_blank" class="discord-button">Join Discord</a>
+
+  <div class="download-buttons" id="downloadButtons">
+    <div class="download-item">
+      <iframe src="https://www.youtube.com/embed/video-id-1" allowfullscreen></iframe>
+      <a href="https://www.mediafire.com/file/bc3u4ozzx8sg6ox/com.NewFolderGames.IAmCat.apk/file" class="download-button" download data-name="IAmCat">I Am CAT</a>
+      <span class="status-label new">NEW!</span>
+    </div>
+    <div class="download-item">
+      <iframe src="https://www.youtube.com/embed/video-id-2" allowfullscreen></iframe>
+      <a href="https://example.com/file2.apk" class="download-button" download data-name="HORROR MADNESS">HORROR MADNESS</a>
+      <span class="status-label outdated">OUTDATED!</span>
+    </div>
+    <div class="download-item">
+      <iframe src="https://www.youtube.com/embed/video-id-3" allowfullscreen></iframe>
+      <a href="PLACEHOLDER DOWNLOAD URL" class="download-button" download data-name="file3">PLACEHOLDER</a>
+      <span class="status-label soon">SOON!</span>
+    </div>
+    <div class="download-item">
+      <iframe src="https://www.youtube.com/embed/video-id-4" allowfullscreen></iframe>
+      <a href="PLACEHOLDER DOWNLOAD URL" class="download-button" download data-name="file4">PLACEHOLDER</a>
+      <span class="status-label soon">SOON!</span>
+    </div>
+  </div>
+
+  <script>
+    function filterDownloads() {
+      const searchInput = document.getElementById('searchInput').value.toLowerCase();
+      const downloadItems = document.getElementById('downloadButtons').getElementsByClassName('download-item');
+
+      Array.from(downloadItems).forEach(item => {
+        const downloadButton = item.querySelector('.download-button');
+        const fileName = downloadButton.getAttribute('data-name').toLowerCase();
+        if (fileName.includes(searchInput) && searchInput !== "") {
+          downloadButton.classList.add('highlight');
+        } else {
+          downloadButton.classList.remove('highlight');
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
