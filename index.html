@@ -13,21 +13,6 @@
             overflow-x: hidden;
         }
 
-        
-
-        .spinner {
-            width: 60px;
-            height: 60px;
-            border: 5px solid rgba(255,255,255,0.2);
-            border-top: 5px solid #00c6ff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-
-        
-        }
-
         canvas#particles {
             position: fixed;
             top: 0;
@@ -44,6 +29,7 @@
             background: rgba(0,0,0,0.6);
             position: sticky;
             top: 0;
+            z-index: 10;
         }
 
         nav a {
@@ -65,20 +51,7 @@
             transition: width 0.3s ease;
         }
 
-        nav a:hover::after {
-            width: 100%;
-        }
-
-        nav a {
-            color: white;
-            text-decoration: none;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        nav a:hover {
-            text-decoration: underline;
-        }
+        nav a:hover::after { width: 100%; }
 
         section {
             display: none;
@@ -96,13 +69,7 @@
             transform: translateY(0);
         }
 
-        section.active {
-            display: block;
-        }
-
-        h1, h2 {
-            margin-bottom: 10px;
-        }
+        h1, h2 { margin-bottom: 10px; }
 
         .card-grid {
             display: grid;
@@ -121,71 +88,15 @@
         }
 
         .card:hover {
-            transform: translateY(-10px) scale(1.03);
-            box-shadow: 0 25px 45px rgba(0,0,0,0.7);
-        }
-
-        .card:hover {
             transform: translateY(-8px) scale(1.02);
             box-shadow: 0 20px 40px rgba(0,0,0,0.6);
         }
 
-        .card img {
-            width: 100%;
-            border-radius: 10px;
-            margin-bottom: 10px;
-        }
+        .card img { width: 100%; border-radius: 10px; margin-bottom: 10px; }
 
-        .card button {
-            position: relative;
-            overflow: hidden;
-            margin-top: 10px;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 8px;
-            background: #00c6ff;
-            color: black;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .card button::after {
-            content: "";
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: rgba(255,255,255,0.6);
-            border-radius: 50%;
-            transform: scale(0);
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .card button:active::after {
-            transform: scale(15);
-            opacity: 0;
-            transition: transform 0.6s ease, opacity 0.6s ease;
-        }
-
-        .card button:hover {
-            background: #00a2d6;
-        }
-
-        .home-hero {
-            text-align: center;
-            padding: 120px 20px;
-            animation: glowFade 1.2s ease forwards;
-        }
-
-        .home-hero h1 {
-            font-size: 60px;
-            letter-spacing: 4px;
-        }
-
-        .home-hero p {
-            opacity: 0.8;
-            font-size: 18px;
-        }
+        .home-hero { text-align: center; padding: 120px 20px; animation: glowFade 1.2s ease forwards; }
+        .home-hero h1 { font-size: 60px; letter-spacing: 4px; }
+        .home-hero p { opacity: 0.8; font-size: 18px; }
 
         pre {
             white-space: pre-wrap;
@@ -194,58 +105,73 @@
             border-radius: 10px;
             line-height: 1.5;
         }
-    @keyframes fadeSlide {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes popIn {
-            from {
-                opacity: 0;
-                transform: scale(0.9);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
 
         @keyframes glowFade {
-            from {
-                opacity: 0;
-                transform: scale(0.95);
-                text-shadow: 0 0 0 rgba(0,198,255,0);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-                text-shadow: 0 0 25px rgba(0,198,255,0.6);
-            }
+            from { opacity: 0; transform: scale(0.95); text-shadow: 0 0 0 rgba(0,198,255,0); }
+            to { opacity: 1; transform: scale(1); text-shadow: 0 0 25px rgba(0,198,255,0.6); }
         }
-    @keyframes floatCard {
+        @keyframes floatCard {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-6px); }
             100% { transform: translateY(0px); }
         }
 
-        @media (max-width: 768px) {
-            section {
-                transform: translateX(40px);
-            }
-            section.active {
-                transform: translateX(0);
-            }
+        /* ===== AUTH INPUTS & BUTTONS ===== */
+        #auth .card input {
+            width: 100%;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+            background: rgba(0,0,0,0.25);
+            border: 2px solid rgba(0,198,255,0.5);
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            outline: none;
+            transition: 0.3s all;
+            box-shadow: 0 0 10px rgba(0,198,255,0.2);
+        }
+
+        #auth .card input::placeholder { color: rgba(255,255,255,0.6); }
+
+        #auth .card input:focus {
+            border-color: #00c6ff;
+            box-shadow: 0 0 12px rgba(0,198,255,0.6);
+            background: rgba(0,0,0,0.35);
+        }
+
+        #auth .card button {
+            width: 100%;
+            padding: 12px 20px;
+            margin-top: 10px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #00c6ff, #0058ff);
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: 0.3s all;
+            box-shadow: 0 4px 20px rgba(0,198,255,0.5);
+        }
+
+        #auth .card button:hover {
+            background: linear-gradient(135deg, #00a2d6, #004bb5);
+            box-shadow: 0 6px 25px rgba(0,198,255,0.7);
+        }
+
+        #auth .card button:active { transform: scale(0.97); }
+        #auth .card button.delete {
+            background: linear-gradient(135deg, #ff5c5c, #ff0000);
+        }
+        #auth .card button.delete:hover {
+            background: linear-gradient(135deg, #e04b4b, #cc0000);
         }
     </style>
 </head>
 <body>
-<p>Loading Snakes Games...</p></div>
+
 <audio id="clickSound" src="https://assets.mixkit.co/sfx/preview/mixkit-select-click-1109.mp3"></audio>
 <audio id="hoverSound" src="https://assets.mixkit.co/sfx/preview/mixkit-hover-click-707.mp3"></audio>
 <canvas id="particles"></canvas>
@@ -256,7 +182,7 @@
     <a onclick="showPage('games')">Games</a>
     <a onclick="showPage('team')">Our Team</a>
     <a onclick="showPage('updates')">Updates</a>
-<a onclick="showPage('auth')">Login</a>
+    <a onclick="showPage('auth')">Login</a>
 </nav>
 
 <!-- HOME -->
@@ -267,24 +193,22 @@
     </div>
 </section>
 
-<!-- PRIVACY POLICY -->
+<!-- PRIVACY -->
 <section id="privacy">
     <h1>Privacy Policy</h1>
     <pre>
 Snakes Games does not collect any personal information from the user directly, we do not store data such as names, addresses or any other personal information.
------------------------------------------------------------------------------------------------------------------------------------
-We use various services to host our multiplayer mode, these are PlayFab and Photon, PlayFab stores an approximate IP address of the user, this is only used for IP banning to prevent ban evasion.
------------------------------------------------------------------------------------------------------------------------------------
-Your hardware ID is sent to PlayFab, this is only used to login to your PlayFab account.
------------------------------------------------------------------------------------------------------------------------------------
-We do not control what these services do with your data, if you have concerns about your data, please go to the provided links below to find out more about these services and how they collect your data :
------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------
+We use various services to host our multiplayer mode: PlayFab and Photon.
+PlayFab stores an approximate IP address for IP banning only.
+-----------------------------------------------------------------
+Your hardware ID is sent to PlayFab for account login only.
+-----------------------------------------------------------------
+We do not control what these services do with your data. See:
 https://playfab.com/terms/
 https://dashboard.photonengine.com/account/privacyandcookiepolicy
------------------------------------------------------------------------------------------------------------------------------------
-If you want to delete your PlayFab account and the data attached to it, please contact sigmaboyguyso12@gmail.com and provide your username and anyone at Snakes Games will clear it as soon as possible
------------------------------------------------------------------------------------------------------------------------------------
-If you have questions, feel free to contact sigmaboyguyso12@gmail.com
+-----------------------------------------------------------------
+To delete your PlayFab account, contact: sigmaboyguyso12@gmail.com
     </pre>
 </section>
 
@@ -295,7 +219,7 @@ If you have questions, feel free to contact sigmaboyguyso12@gmail.com
         <div class="card">
             <img src="https://via.placeholder.com/400x200">
             <h2>COMING SOON</h2>
-            <p>Releaseing Soon</p>
+            <p>Releasing Soon</p>
             <button onclick="window.location.href='https://example.com'">Download</button>
         </div>
     </div>
@@ -305,11 +229,10 @@ If you have questions, feel free to contact sigmaboyguyso12@gmail.com
 <section id="team">
     <h1>Our Team</h1>
     <div class="card-grid">
-        <!-- TEAM MEMBER -->
         <div class="card">
             <img src="https://via.placeholder.com/300" alt="Team Member">
             <h2>Snake</h2>
-            <p>CEO/DEV/SCRIPTER</p>
+            <p>CEO / DEV / SCRIPTER</p>
         </div>
     </div>
 </section>
@@ -318,19 +241,20 @@ If you have questions, feel free to contact sigmaboyguyso12@gmail.com
 <section id="auth">
     <h1>Login / Register</h1>
     <div class="card" style="max-width:420px;margin:auto;">
-        <input id="pfUsername" placeholder="Username" style="width:100%;padding:10px;margin-bottom:10px;">
-        <input id="pfEmail" type="email" placeholder="Email (Gmail)" style="width:100%;padding:10px;margin-bottom:10px;">
-        <input id="pfPassword" type="password" placeholder="Password" style="width:100%;padding:10px;margin-bottom:10px;">
+        <input id="pfUsername" placeholder="Username">
+        <input id="pfEmail" type="email" placeholder="Email (Gmail)">
+        <input id="pfPassword" type="password" placeholder="Password">
+
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <input id="rememberMe" type="checkbox"> Remember me
         </label>
-        <div style="display:flex;gap:10px;">
-            <button onclick="pfRegister()">Register</button>
-            <button onclick="pfLogin()">Login</button>
-        </div>
-        <hr style="opacity:.2;margin:15px 0;">
+
+        <button onclick="pfRegister()">Register</button>
+        <button onclick="pfLogin()">Login</button>
         <button onclick="pfLogout()">Logout</button>
-        <button onclick="pfDeleteAccount()" style="background:#ff5c5c;">Delete Account</button>
+        <button onclick="pfDeleteAccount()" class="delete">Delete Account</button>
+        <button onclick="resetPassword()">Reset Password</button>
+
         <p id="authMsg"></p>
     </div>
 </section>
@@ -339,7 +263,6 @@ If you have questions, feel free to contact sigmaboyguyso12@gmail.com
 <section id="updates">
     <h1>Updates</h1>
     <div class="card-grid">
-        <!-- UPDATE CARD -->
         <div class="card">
             <img src="https://via.placeholder.com/400x200" alt="Update Image">
             <h2>RELEASE</h2>
@@ -349,215 +272,89 @@ If you have questions, feel free to contact sigmaboyguyso12@gmail.com
     </div>
 </section>
 
+<script src="https://download.playfab.com/PlayFabClientApi.js"></script>
 <script>
+    // --- PAGE SWITCH ---
     function showPage(pageId) {
-        const sections = document.querySelectorAll('section');
-        sections.forEach(sec => {
-            sec.classList.remove('active');
-        });
-        setTimeout(() => {
-            document.getElementById(pageId).classList.add('active');
-        }, 150);
+        document.querySelectorAll('section').forEach(sec => sec.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
     }
 
+    // --- PARTICLES ---
     const canvas = document.getElementById('particles');
     const ctx = canvas.getContext('2d');
     let particles = [];
-
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.addEventListener('resize', resize);
     resize();
-
-    for (let i = 0; i < 80; i++) {
-        particles.push({
-            x: Math.random() * canvas.width,
-            y: Math.random() * canvas.height,
-            r: Math.random() * 2 + 1,
-            dx: (Math.random() - 0.5) * 0.4,
-            dy: (Math.random() - 0.5) * 0.4
-        });
-    }
-
+    for(let i=0;i<80;i++) particles.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, r:Math.random()*2+1, dx:(Math.random()-0.5)*0.4, dy:(Math.random()-0.5)*0.4});
     function animateParticles() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0,0,canvas.width,canvas.height);
         ctx.fillStyle = 'rgba(0,198,255,0.6)';
-        particles.forEach(p => {
-            p.x += p.dx;
-            p.y += p.dy;
-            if (p.x < 0 || p.x > canvas.width) p.dx *= -1;
-            if (p.y < 0 || p.y > canvas.height) p.dy *= -1;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-            ctx.fill();
-        });
+        particles.forEach(p => { p.x+=p.dx; p.y+=p.dy; if(p.x<0||p.x>canvas.width)p.dx*=-1; if(p.y<0||p.y>canvas.height)p.dy*=-1; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill(); });
         requestAnimationFrame(animateParticles);
     }
-
     animateParticles();
-window.addEventListener('load', () => {
-        document.getElementById('loader').style.display = 'none';
-    });
 
+    // --- BUTTON SOUNDS ---
     const clickSound = document.getElementById('clickSound');
     const hoverSound = document.getElementById('hoverSound');
-
     document.querySelectorAll('button, nav a').forEach(el => {
-        el.addEventListener('mouseenter', () => {
-            hoverSound.currentTime = 0;
-            hoverSound.play();
-        });
-        el.addEventListener('click', () => {
-            clickSound.currentTime = 0;
-            clickSound.play();
-        });
+        el.addEventListener('mouseenter',()=>{hoverSound.currentTime=0;hoverSound.play();});
+        el.addEventListener('click',()=>{clickSound.currentTime=0;clickSound.play();});
     });
-const gamesData = [
-        {
-            name: "COMING SOON",
-            description: "SOON",
-            image: "https://via.placeholder.com/400x200",
-            link: "https://example.com"
-        }
-    ];
 
-    function renderGames() {
-        const container = document.getElementById('gamesList');
-        container.innerHTML = "";
-        gamesData.forEach(game => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <img src="${game.image}">
-                <h2>${game.name}</h2>
-                <p>${game.description}</p>
-                <button onclick="window.location.href='${game.link}'">Download</button>
-            `;
-            container.appendChild(card);
-        });
+    // --- GAMES DATA ---
+    const gamesData = [{name:"COMING SOON", description:"SOON", image:"https://via.placeholder.com/400x200", link:"https://example.com"}];
+
+    // --- PLAYFAB SETTINGS ---
+    PlayFab.settings.titleId = "1977F0";
+
+    // --- AUTH FUNCTIONS ---
+    const pfUsername = document.getElementById('pfUsername');
+    const pfEmail = document.getElementById('pfEmail');
+    const pfPassword = document.getElementById('pfPassword');
+    const rememberMe = document.getElementById('rememberMe');
+    const authMsg = document.getElementById('authMsg');
+
+    function pfRegister() {
+        if(!pfUsername.value || !pfEmail.value || !pfPassword.value){ authMsg.textContent='Fill all fields'; return; }
+        PlayFabClientSDK.RegisterPlayFabUser({Username:pfUsername.value, Email:pfEmail.value, Password:pfPassword.value, DisplayName:pfUsername.value, RequireBothUsernameAndEmail:true}, 
+            result => authMsg.textContent='Account registered. You can now login.',
+            error => authMsg.textContent = error.errorMessage);
     }
 
-    renderGames();
+    function pfLogin() {
+        if(!pfUsername.value || !pfPassword.value){ authMsg.textContent='Username and password required'; return; }
+        PlayFabClientSDK.LoginWithPlayFab({Username:pfUsername.value, Password:pfPassword.value}, 
+            result => { 
+                if(rememberMe.checked){ localStorage.setItem('pf_session', result.data.SessionTicket); localStorage.setItem('pf_username', pfUsername.value); }
+                authMsg.textContent = 'Logged in as '+pfUsername.value; showPage('home');
+            }, 
+            error => authMsg.textContent=error.errorMessage);
+    }
 
-PlayFab.settings.titleId = "1977F0";
+    function pfLogout() {
+        localStorage.removeItem('pf_session'); localStorage.removeItem('pf_username'); authMsg.textContent='Logged out'; showPage('auth');
+    }
 
-, result => {
-            setRole("user");
-            authMsg.textContent = "Account created!";
-        }, error => authMsg.textContent = error.errorMessage);
-}
+    function pfDeleteAccount() {
+        if(!confirm('This will permanently delete your PlayFab account. Continue?')) return;
+        PlayFabClientSDK.DeleteMasterPlayerAccount({}, () => { pfLogout(); authMsg.textContent='Account deleted'; }, error=>authMsg.textContent=error.errorMessage);
+    }
 
-function pfLogin() {
-        if (!pfUsername.value || !pfPassword.value) {
-            authMsg.textContent = 'Username and password required';
-            return;
-        }
-        PlayFabClientSDK.LoginWithPlayFab({
-            Username: pfUsername.value,
-            Password: pfPassword.value
-        }, result => {
-            if (rememberMe.checked) {
-                localStorage.setItem('pf_session', result.data.SessionTicket);
-                localStorage.setItem('pf_username', pfUsername.value);
-            }
-            authMsg.textContent = 'Logged in as ' + pfUsername.value;
-            showPage('home');
-        }, error => authMsg.textContent = error.errorMessage);
-}
-
-        PlayFabClientSDK.LoginWithEmailAddress({
-            Email: email.value,
-            Password: password.value
-        }, result => {
-            PlayFabClientSDK.UpdateUserTitleDisplayName({
-                DisplayName: ingameName.value
-            });
-            authMsg.textContent = 'Logged in as ' + ingameName.value;
-            showPage('home');
-        }, error => {
-            authMsg.textContent = error.errorMessage;
-        });
-}
-, result => {
-            getRole();
-            authMsg.textContent = "Logged in as " + pfUser.value;
-            showPage('home');
-        }, error => authMsg.textContent = error.errorMessage);
-}
-
-
-        });
-}
-
-, result => {
-            currentRole = result.data.Data?.role?.Value || "user";
-            if (currentRole === "admin") {
-                document.body.classList.add("admin");
-            }
-        });
-}
-function pfRegister() {
-        if (!pfUsername.value || !pfEmail.value || !pfPassword.value) {
-            authMsg.textContent = 'Fill all fields';
-            return;
-        }
-        PlayFabClientSDK.RegisterPlayFabUser({
-            Username: pfUsername.value,
-            Email: pfEmail.value,
-            Password: pfPassword.value,
-            DisplayName: pfUsername.value,
-            RequireBothUsernameAndEmail: true
-        }, result => {
-            authMsg.textContent = 'Account registered. You can now login.';
-        }, error => authMsg.textContent = error.errorMessage);
-}
-
-function pfLogout() {
-        localStorage.removeItem('pf_session');
-        localStorage.removeItem('pf_username');
-        authMsg.textContent = 'Logged out';
-        showPage('auth');
-}
-
-function pfDeleteAccount() {
-        if (!confirm('This will permanently delete your PlayFab account. Continue?')) return;
-        PlayFabClientSDK.DeleteMasterPlayerAccount({}, () => {
-            pfLogout();
-            authMsg.textContent = 'Account deleted';
-        }, error => authMsg.textContent = error.errorMessage);
-}
-
-// Auto login
-window.addEventListener('load', () => {
-        const session = localStorage.getItem('pf_session');
-        const user = localStorage.getItem('pf_username');
-        if (session && user) {
-            PlayFab.settings.sessionTicket = session;
-            authMsg.textContent = 'Welcome back ' + user;
-            showPage('home');
-        }
-});
-    // PASSWORD RESET (EMAIL)
     function resetPassword() {
-        if (!email.value) {
-            authMsg.textContent = 'Enter your email to reset password';
-            return;
-        }
-
-        PlayFabClientSDK.SendAccountRecoveryEmail({
-            Email: email.value,
-            TitleId: PlayFab.settings.titleId
-        }, () => {
-            authMsg.textContent = 'Password reset email sent';
-        }, error => {
-            authMsg.textContent = error.errorMessage;
-        });
+        if(!pfEmail.value){ authMsg.textContent='Enter your email to reset password'; return; }
+        PlayFabClientSDK.SendAccountRecoveryEmail({Email:pfEmail.value, TitleId:PlayFab.settings.titleId},
+            () => authMsg.textContent='Password reset email sent',
+            error => authMsg.textContent = error.errorMessage);
     }
-</script>
 
-<script src="https://download.playfab.com/PlayFabClientApi.js"></script>
+    // --- AUTO LOGIN ---
+    window.addEventListener('load',()=>{
+        const session = localStorage.getItem('pf_session'); const user = localStorage.getItem('pf_username');
+        if(session && user){ PlayFab.settings.sessionTicket=session; authMsg.textContent='Welcome back '+user; showPage('home'); }
+    });
+</script>
 </body>
 </html>
