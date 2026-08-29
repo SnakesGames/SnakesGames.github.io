@@ -1,14 +1,13 @@
+```js
 import express from 'express';
 import cors from 'cors';
 import crypto from 'node:crypto';
 import { Pool } from 'pg';
 
-const app = express();
-
 const PORT = Number(process.env.PORT || 3000);
-const DATABASE_URL = process.env.DATABASE_URL;
 const SECRET = process.env.VAULT_SECRET || 'change-this-secret';
 const GAME_API_KEY = process.env.GAME_API_KEY || '';
+const DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
   console.error('DATABASE_URL is required.');
@@ -22,28 +21,119 @@ const pool = new Pool({
   }
 });
 
-app.use(cors());
+const app = express();
+
 app.use(express.json({ limit: '1mb' }));
 
+const allowedOrigins = (
+  process.env.CORS_ORIGINS ||
+  'https://snakesbackend.vercel.app'
+)
+  .split(',')
+  .map(x => x.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (
+        !origin ||
+        allowedOrigins.length === 0 ||
+        allowedOrigins.includes(origin)
+      ) {
+        return callback(null, true);
+      }
+
+      return callback(new Error('CORS origin not allowed'));
+    }
+  })
+);
+
+const DEFAULT_CATALOG = {
+  currencies: [
+    {
+      code: 'GOLD',
+      name: 'Gold'
+    },
+    {
+      code: 'GEMS',
+      name: 'Gems'
+    }
+  ],
+  items: [
+    {
+      id: 'neon_skin',
+      name: 'Neon Skin',
+      category: 'Skin',
+      price: {
+        currency: 'GOLD',
+        amount: 500
+      },
+      repeatable: false
+    },
+    {
+      id: 'confetti_emote',
+      name: 'Confetti Burst',
+      category: 'Emote',
+      price: {
+        currency: 'GEMS',
+        amount: 150
+      },
+      repeatable: true
+    },
+    {
+      id: 'crown_hat',
+      name: 'Golden Crown',
+      category: 'Hat',
+      price: {
+        currency: 'GEMS',
+        amount: 400
+      },
+      repeatable: false
+    }
+  ]
+};
+
 function createId(prefix = 'p') {
-  return prefix + '_' + crypto.randomBytes(7).toString('hex');
+  return (
+    prefix +
+    '_' +
+    crypto.randomBytes(7).toString('hex')
+  );
 }
 
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.scryptSync(password, salt, 32).toString('hex');
+function hashPassword(
+  value,
+  salt = crypto.randomBytes(16).toString('hex')
+) {
+  const hash = crypto
+    .scryptSync(value, salt, 32)
+    .toString('hex');
+
   return salt + ':' + hash;
 }
 
-function verifyPassword(password, stored) {
-  if (!stored || !stored.includes(':')) return false;
+function verifyPassword(value, stored) {
+  if (
+    typeof stored !== 'string' ||
+    !stored.includes(':')
+  ) {
+    return false;
+  }
 
   const parts = stored.split(':');
+
+  if (parts.length !== 2) {
+    return false;
+  }
+
   const salt = parts[0];
   const hash = parts[1];
 
   try {
-    const actual = crypto.scryptSync(password, salt, 32).toString('hex');
+    const actual = crypto
+      .scryptSync(value, salt, 32)
+      .toString('hex');
 
     if (actual.length !== hash.length) {
       return false;
@@ -58,15 +148,15 @@ function verifyPassword(password, stored) {
   }
 }
 
-function createToken(subject) {
+function tokenFor(subject) {
   const payload = {
     sub: subject,
-    exp: Date.now() + 604800000
+    exp: Date.now() + 1000 * 60 * 60 * 24 * 7
   };
 
-  const body = Buffer
-    .from(JSON.stringify(payload))
-    .toString('base64url');
+  const body = Buffer.from(
+    JSON.stringify(payload)
+  ).toString('base64url');
 
   const signature = crypto
     .createHmac('sha256', SECRET)
@@ -77,15 +167,16 @@ function createToken(subject) {
 }
 
 function adminAuth(req, res, next) {
-  const auth = req.headers.authorization || '';
+  const authorization =
+    req.headers.authorization || '';
 
-  if (!auth.startsWith('Bearer ')) {
+  if (!authorization.startsWith('Bearer ')) {
     return res.status(401).json({
       error: 'Unauthorized'
     });
   }
 
-  const token = auth.substring(7);
+  const token = authorization.slice(7);
   const parts = token.split('.');
 
   if (parts.length !== 2) {
@@ -102,7 +193,18 @@ function adminAuth(req, res, next) {
     .update(body)
     .digest('base64url');
 
-  if (signature !== expected) {
+  if (signature.length !== expected.length) {
+    return res.status(401).json({
+      error: 'Unauthorized'
+    });
+  }
+
+  if (
+    !crypto.timingSafeEqual(
+      Buffer.from(signature),
+      Buffer.from(expected)
+    )
+  ) {
     return res.status(401).json({
       error: 'Unauthorized'
     });
@@ -113,9 +215,12 @@ function adminAuth(req, res, next) {
       Buffer.from(body, 'base64url').toString()
     );
 
-    if (!payload.exp || payload.exp < Date.now()) {
+    if (
+      !payload.exp ||
+      payload.exp < Date.now()
+    ) {
       return res.status(401).json({
-        error: 'Token expired'
+        error: 'Unauthorized'
       });
     }
 
@@ -135,7 +240,9 @@ function gameAuth(req, res, next) {
     });
   }
 
-  if (req.headers['x-vault-game-key'] !== GAME_API_KEY) {
+  if (
+    req.headers['x-vault-game-key'] !== GAME_API_KEY
+  ) {
     return res.status(401).json({
       error: 'Invalid game API key'
     });
@@ -144,26 +251,14 @@ function gameAuth(req, res, next) {
   next();
 }
 
-function validUsername(username) {
+function validateName(name) {
   return (
-    typeof username === 'string' &&
-    /^[a-zA-Z0-9_.-]{1,32}$/.test(username)
+    typeof name === 'string' &&
+    /^[a-zA-Z0-9_.-]{1,32}$/.test(name)
   );
 }
 
-function playerObject(row) {
-  return {
-    id: row.id,
-    username: row.username,
-    createdAt: Number(row.created_at),
-    data: row.data || {},
-    currency: row.currency || {},
-    inventory: row.inventory || [],
-    banned: row.banned
-  };
-}
-
-async function getSetting(key, fallback = null) {
+async function setting(key, fallback = null) {
   const result = await pool.query(
     'SELECT value FROM vault_settings WHERE key = $1',
     [key]
@@ -178,120 +273,137 @@ async function getSetting(key, fallback = null) {
 
 async function setSetting(key, value) {
   await pool.query(
-    'INSERT INTO vault_settings(key, value) VALUES($1, $2) ON CONFLICT(key) DO UPDATE SET value = EXCLUDED.value',
+    `
+    INSERT INTO vault_settings(key, value)
+    VALUES($1, $2)
+    ON CONFLICT(key)
+    DO UPDATE SET value = EXCLUDED.value
+    `,
     [key, value]
   );
 }
 
 async function incrementCalls() {
   await pool.query(
-    "UPDATE vault_settings SET value = to_jsonb((COALESCE(value #>> '{}', '0')::bigint + 1)::text) WHERE key = 'apiCalls'"
+    `
+    UPDATE vault_settings
+    SET value = to_jsonb(
+      (COALESCE(value::text, '0')::bigint + 1)
+    )
+    WHERE key = 'apiCalls'
+    `
   );
 }
 
-async function getPlayer(id) {
+function playerObject(row) {
+  if (!row) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    username: row.username,
+    createdAt: Number(row.created_at),
+    data: row.data || {},
+    currency: row.currency || {},
+    inventory: row.inventory || [],
+    banned: Boolean(row.banned)
+  };
+}
+
+async function requirePlayer(pid, res) {
   const result = await pool.query(
     'SELECT * FROM players WHERE id = $1',
-    [id]
+    [pid]
   );
 
-  return result.rowCount ? result.rows[0] : null;
+  if (!result.rowCount) {
+    res.status(404).json({
+      error: 'Player not found'
+    });
+
+    return null;
+  }
+
+  return result.rows[0];
 }
 
-async function initializeDatabase() {
+async function dbInit() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS vault_settings (
+      key TEXT PRIMARY KEY,
+      value JSONB NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS players (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      created_at BIGINT NOT NULL,
+      data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      currency JSONB NOT NULL DEFAULT '{}'::jsonb,
+      inventory JSONB NOT NULL DEFAULT '[]'::jsonb,
+      banned BOOLEAN NOT NULL DEFAULT FALSE
+    );
+
+    CREATE TABLE IF NOT EXISTS leaderboards (
+      name TEXT PRIMARY KEY,
+      entries JSONB NOT NULL DEFAULT '[]'::jsonb
+    );
+
+    CREATE INDEX IF NOT EXISTS players_username_idx
+    ON players(username);
+  `);
+
   await pool.query(
-    'CREATE TABLE IF NOT EXISTS vault_settings (key TEXT PRIMARY KEY, value JSONB NOT NULL)'
+    `
+    INSERT INTO vault_settings(key, value)
+    VALUES($1, $2)
+    ON CONFLICT(key) DO NOTHING
+    `,
+    [
+      'titleData',
+      {
+        game_version: '1.0.0',
+        maintenance_mode: false
+      }
+    ]
   );
 
   await pool.query(
-    'CREATE TABLE IF NOT EXISTS players (id TEXT PRIMARY KEY, username TEXT NOT NULL, created_at BIGINT NOT NULL, data JSONB NOT NULL DEFAULT \'{}\'::jsonb, currency JSONB NOT NULL DEFAULT \'{}\'::jsonb, inventory JSONB NOT NULL DEFAULT \'[]\'::jsonb, banned BOOLEAN NOT NULL DEFAULT FALSE)'
+    `
+    INSERT INTO vault_settings(key, value)
+    VALUES($1, $2)
+    ON CONFLICT(key) DO NOTHING
+    `,
+    [
+      'catalog',
+      DEFAULT_CATALOG
+    ]
   );
 
   await pool.query(
-    'CREATE TABLE IF NOT EXISTS leaderboards (name TEXT PRIMARY KEY, entries JSONB NOT NULL DEFAULT \'[]\'::jsonb)'
+    `
+    INSERT INTO vault_settings(key, value)
+    VALUES($1, $2)
+    ON CONFLICT(key) DO NOTHING
+    `,
+    [
+      'apiCalls',
+      0
+    ]
   );
-
-  await pool.query(
-    'CREATE INDEX IF NOT EXISTS players_username_idx ON players(username)'
-  );
-
-  const titleData = await getSetting('titleData');
-
-  if (titleData === null) {
-    await setSetting('titleData', {
-      game_version: '1.0.0',
-      maintenance_mode: false
-    });
-  }
-
-  const catalog = await getSetting('catalog');
-
-  if (catalog === null) {
-    await setSetting('catalog', {
-      currencies: [
-        {
-          code: 'GOLD',
-          name: 'Gold'
-        },
-        {
-          code: 'GEMS',
-          name: 'Gems'
-        }
-      ],
-      items: [
-        {
-          id: 'neon_skin',
-          name: 'Neon Skin',
-          category: 'Skin',
-          price: {
-            currency: 'GOLD',
-            amount: 500
-          },
-          repeatable: false
-        },
-        {
-          id: 'confetti_emote',
-          name: 'Confetti Burst',
-          category: 'Emote',
-          price: {
-            currency: 'GEMS',
-            amount: 150
-          },
-          repeatable: true
-        },
-        {
-          id: 'crown_hat',
-          name: 'Golden Crown',
-          category: 'Hat',
-          price: {
-            currency: 'GEMS',
-            amount: 400
-          },
-          repeatable: false
-        }
-      ]
-    });
-  }
-
-  const apiCalls = await getSetting('apiCalls');
-
-  if (apiCalls === null) {
-    await setSetting('apiCalls', '0');
-  }
-
-  console.log('Database initialized.');
 }
 
 app.get('/', (req, res) => {
-  res.status(200).json({
+  res.json({
     ok: true,
     service: 'Snakes Games Vault API',
     status: 'online',
     version: '2.0.0',
     endpoints: {
       health: '/api/health',
-      auth: '/api/auth/status',
-      catalog: '/api/catalog'
+      authStatus: '/api/auth/status',
+      stats: '/api/stats'
     }
   });
 });
@@ -307,7 +419,7 @@ app.get('/api/health', async (req, res) => {
       time: new Date().toISOString()
     });
   } catch (error) {
-    console.error(error);
+    console.error('Health check failed:', error);
 
     res.status(503).json({
       ok: false,
@@ -317,72 +429,107 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.get('/api/auth/status', async (req, res) => {
-  const auth = await getSetting('auth');
+  try {
+    res.json({
+      configured: Boolean(await setting('auth'))
+    });
+  } catch (error) {
+    console.error(error);
 
-  res.json({
-    configured: !!auth
-  });
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
 });
 
 app.post('/api/auth/setup', async (req, res) => {
-  const existing = await getSetting('auth');
+  try {
+    if (await setting('auth')) {
+      return res.status(409).json({
+        error: 'Passcode already configured'
+      });
+    }
 
-  if (existing) {
-    return res.status(409).json({
-      error: 'Passcode already configured'
+    const passcode = req.body?.passcode;
+
+    if (
+      typeof passcode !== 'string' ||
+      passcode.length < 4
+    ) {
+      return res.status(400).json({
+        error: 'Passcode must be at least 4 characters'
+      });
+    }
+
+    await setSetting('auth', {
+      password: hashPassword(passcode),
+      createdAt: Date.now()
+    });
+
+    res.json({
+      token: tokenFor('admin')
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: 'Internal server error'
     });
   }
-
-  const passcode = req.body?.passcode;
-
-  if (
-    typeof passcode !== 'string' ||
-    passcode.length < 4
-  ) {
-    return res.status(400).json({
-      error: 'Passcode must be at least 4 characters'
-    });
-  }
-
-  await setSetting('auth', {
-    password: hashPassword(passcode),
-    createdAt: Date.now()
-  });
-
-  res.json({
-    token: createToken('admin')
-  });
 });
 
 app.post('/api/auth/login', async (req, res) => {
-  const passcode = String(req.body?.passcode || '');
-  const auth = await getSetting('auth');
+  try {
+    const passcode = String(
+      req.body?.passcode || ''
+    );
 
-  if (!auth || !verifyPassword(passcode, auth.password)) {
-    return res.status(401).json({
-      error: 'Incorrect passcode'
+    const auth = await setting('auth');
+
+    if (
+      !auth ||
+      !verifyPassword(
+        passcode,
+        auth.password
+      )
+    ) {
+      return res.status(401).json({
+        error: 'Incorrect passcode'
+      });
+    }
+
+    res.json({
+      token: tokenFor('admin')
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      error: 'Internal server error'
     });
   }
-
-  res.json({
-    token: createToken('admin')
-  });
 });
 
-app.use('/api/admin', adminAuth);
+app.use('/api', adminAuth);
 
-app.get('/api/admin/state', async (req, res) => {
-  const players = await pool.query(
-    'SELECT * FROM players ORDER BY created_at ASC'
-  );
-
-  const leaderboards = await pool.query(
-    'SELECT * FROM leaderboards ORDER BY name ASC'
-  );
-
-  const titleData = await getSetting('titleData', {});
-  const catalog = await getSetting('catalog', {});
-  const apiCalls = await getSetting('apiCalls', '0');
+app.get('/api/state', async (req, res) => {
+  const [
+    players,
+    leaderboards,
+    titleData,
+    catalog,
+    apiCalls
+  ] = await Promise.all([
+    pool.query(
+      'SELECT * FROM players ORDER BY created_at ASC'
+    ),
+    pool.query(
+      'SELECT * FROM leaderboards ORDER BY name ASC'
+    ),
+    setting('titleData', {}),
+    setting('catalog', DEFAULT_CATALOG),
+    setting('apiCalls', 0)
+  ]);
 
   await incrementCalls();
 
@@ -391,6 +538,7 @@ app.get('/api/admin/state', async (req, res) => {
 
   for (const row of players.rows) {
     const player = playerObject(row);
+
     playerMap[player.id] = player;
     playerOrder.push(player.id);
   }
@@ -399,7 +547,9 @@ app.get('/api/admin/state', async (req, res) => {
   const leaderboardOrder = [];
 
   for (const row of leaderboards.rows) {
-    leaderboardMap[row.name] = row.entries || [];
+    leaderboardMap[row.name] =
+      row.entries || [];
+
     leaderboardOrder.push(row.name);
   }
 
@@ -410,34 +560,43 @@ app.get('/api/admin/state', async (req, res) => {
     lbOrder: leaderboardOrder,
     titleData,
     catalog,
-    apiCalls: Number(apiCalls) + 1
+    apiCalls: Number(apiCalls || 0) + 1
   });
 });
 
-app.get('/api/admin/stats', async (req, res) => {
-  const players = await pool.query(
-    'SELECT COUNT(*)::int AS count FROM players'
-  );
-
-  const leaderboards = await pool.query(
-    'SELECT COUNT(*)::int AS count FROM leaderboards'
-  );
-
-  const titleData = await getSetting('titleData', {});
-  const catalog = await getSetting('catalog', {});
-  const apiCalls = await getSetting('apiCalls', '0');
+app.get('/api/stats', async (req, res) => {
+  const [
+    players,
+    leaderboards,
+    titleData,
+    catalog,
+    apiCalls
+  ] = await Promise.all([
+    pool.query(
+      'SELECT count(*)::int AS count FROM players'
+    ),
+    pool.query(
+      'SELECT count(*)::int AS count FROM leaderboards'
+    ),
+    setting('titleData', {}),
+    setting('catalog', DEFAULT_CATALOG),
+    setting('apiCalls', 0)
+  ]);
 
   res.json({
     players: players.rows[0].count,
     leaderboards: leaderboards.rows[0].count,
-    titleDataKeys: Object.keys(titleData).length,
-    currencies: (catalog.currencies || []).length,
-    items: (catalog.items || []).length,
-    apiCalls: Number(apiCalls)
+    titleDataKeys:
+      Object.keys(titleData || {}).length,
+    currencies:
+      (catalog.currencies || []).length,
+    items:
+      (catalog.items || []).length,
+    apiCalls: Number(apiCalls || 0)
   });
 });
 
-app.get('/api/admin/players', async (req, res) => {
+app.get('/api/players', async (req, res) => {
   const result = await pool.query(
     'SELECT * FROM players ORDER BY created_at ASC'
   );
@@ -449,12 +608,13 @@ app.get('/api/admin/players', async (req, res) => {
   );
 });
 
-app.post('/api/admin/players', async (req, res) => {
+app.post('/api/players', async (req, res) => {
   const username = req.body?.username;
 
-  if (!validUsername(username)) {
+  if (!validateName(username)) {
     return res.status(400).json({
-      error: 'Invalid username'
+      error:
+        'Username must be 1-32 characters: letters, numbers, _, ., -'
     });
   }
 
@@ -469,7 +629,18 @@ app.post('/api/admin/players', async (req, res) => {
   };
 
   await pool.query(
-    'INSERT INTO players(id, username, created_at, data, currency, inventory, banned) VALUES($1,$2,$3,$4,$5,$6,$7)',
+    `
+    INSERT INTO players(
+      id,
+      username,
+      created_at,
+      data,
+      currency,
+      inventory,
+      banned
+    )
+    VALUES($1,$2,$3,$4,$5,$6,$7)
+    `,
     [
       player.id,
       player.username,
@@ -486,25 +657,101 @@ app.post('/api/admin/players', async (req, res) => {
   res.status(201).json(player);
 });
 
-app.get('/api/admin/players/:id', async (req, res) => {
-  const player = await getPlayer(req.params.id);
+app.get('/api/players/:pid', async (req, res) => {
+  const player = await requirePlayer(
+    req.params.pid,
+    res
+  );
+
+  if (player) {
+    res.json(playerObject(player));
+  }
+});
+
+app.put('/api/players/:pid', async (req, res) => {
+  const player = await requirePlayer(
+    req.params.pid,
+    res
+  );
 
   if (!player) {
-    return res.status(404).json({
-      error: 'Player not found'
+    return;
+  }
+
+  const body = req.body || {};
+
+  const username =
+    body.username === undefined
+      ? player.username
+      : body.username;
+
+  if (!validateName(username)) {
+    return res.status(400).json({
+      error: 'Invalid username'
     });
   }
 
-  res.json(playerObject(player));
+  const data =
+    body.data === undefined
+      ? player.data
+      : body.data;
+
+  const currency =
+    body.currency === undefined
+      ? player.currency
+      : body.currency;
+
+  const inventory =
+    body.inventory === undefined
+      ? player.inventory
+      : body.inventory;
+
+  const banned =
+    body.banned === undefined
+      ? player.banned
+      : Boolean(body.banned);
+
+  await pool.query(
+    `
+    UPDATE players
+    SET username = $1,
+        data = $2,
+        currency = $3,
+        inventory = $4,
+        banned = $5
+    WHERE id = $6
+    `,
+    [
+      username,
+      data,
+      currency,
+      inventory,
+      banned,
+      player.id
+    ]
+  );
+
+  await incrementCalls();
+
+  res.json({
+    id: player.id,
+    username,
+    createdAt: Number(player.created_at),
+    data,
+    currency,
+    inventory,
+    banned
+  });
 });
 
-app.delete('/api/admin/players/:id', async (req, res) => {
-  const player = await getPlayer(req.params.id);
+app.delete('/api/players/:pid', async (req, res) => {
+  const player = await requirePlayer(
+    req.params.pid,
+    res
+  );
 
   if (!player) {
-    return res.status(404).json({
-      error: 'Player not found'
-    });
+    return;
   }
 
   await pool.query(
@@ -519,13 +766,14 @@ app.delete('/api/admin/players/:id', async (req, res) => {
   });
 });
 
-app.post('/api/admin/players/:id/ban', async (req, res) => {
-  const player = await getPlayer(req.params.id);
+app.post('/api/players/:pid/ban', async (req, res) => {
+  const player = await requirePlayer(
+    req.params.pid,
+    res
+  );
 
   if (!player) {
-    return res.status(404).json({
-      error: 'Player not found'
-    });
+    return;
   }
 
   await pool.query(
@@ -534,18 +782,19 @@ app.post('/api/admin/players/:id/ban', async (req, res) => {
   );
 
   res.json({
-    ok: true,
+    ...playerObject(player),
     banned: true
   });
 });
 
-app.post('/api/admin/players/:id/unban', async (req, res) => {
-  const player = await getPlayer(req.params.id);
+app.post('/api/players/:pid/unban', async (req, res) => {
+  const player = await requirePlayer(
+    req.params.pid,
+    res
+  );
 
   if (!player) {
-    return res.status(404).json({
-      error: 'Player not found'
-    });
+    return;
   }
 
   await pool.query(
@@ -554,65 +803,231 @@ app.post('/api/admin/players/:id/unban', async (req, res) => {
   );
 
   res.json({
-    ok: true,
+    ...playerObject(player),
     banned: false
   });
 });
 
-app.get('/api/admin/title-data', async (req, res) => {
-  res.json(
-    await getSetting('titleData', {})
-  );
-});
+app.post(
+  '/api/players/:pid/currency',
+  async (req, res) => {
+    const player = await requirePlayer(
+      req.params.pid,
+      res
+    );
 
-app.put('/api/admin/title-data', async (req, res) => {
-  if (
-    !req.body ||
-    typeof req.body !== 'object' ||
-    Array.isArray(req.body)
-  ) {
-    return res.status(400).json({
-      error: 'Object required'
+    if (!player) {
+      return;
+    }
+
+    if (player.banned) {
+      return res.status(403).json({
+        error: 'Player is banned'
+      });
+    }
+
+    const code = req.body?.code;
+    const amount = Number(
+      req.body?.amount
+    );
+    const operation =
+      req.body?.operation || 'grant';
+
+    if (
+      !code ||
+      !Number.isInteger(amount) ||
+      amount <= 0 ||
+      !['grant', 'deduct'].includes(operation)
+    ) {
+      return res.status(400).json({
+        error: 'Invalid currency operation'
+      });
+    }
+
+    const currency = {
+      ...(player.currency || {})
+    };
+
+    currency[code] =
+      (currency[code] || 0) +
+      (
+        operation === 'deduct'
+          ? -amount
+          : amount
+      );
+
+    if (currency[code] < 0) {
+      return res.status(400).json({
+        error: 'Not enough balance'
+      });
+    }
+
+    await pool.query(
+      'UPDATE players SET currency = $1 WHERE id = $2',
+      [currency, player.id]
+    );
+
+    res.json({
+      ...playerObject(player),
+      currency
     });
   }
+);
 
-  await setSetting('titleData', req.body);
+app.post(
+  '/api/players/:pid/inventory',
+  async (req, res) => {
+    const player = await requirePlayer(
+      req.params.pid,
+      res
+    );
 
-  res.json(req.body);
-});
+    if (!player) {
+      return;
+    }
 
-app.get('/api/admin/catalog', async (req, res) => {
-  res.json(
-    await getSetting('catalog', {})
-  );
-});
+    if (player.banned) {
+      return res.status(403).json({
+        error: 'Player is banned'
+      });
+    }
 
-app.put('/api/admin/catalog', async (req, res) => {
-  const currencies = req.body?.currencies;
-  const items = req.body?.items;
+    const catalog = await setting(
+      'catalog',
+      DEFAULT_CATALOG
+    );
 
-  if (
-    !Array.isArray(currencies) ||
-    !Array.isArray(items)
-  ) {
-    return res.status(400).json({
-      error: 'currencies and items arrays required'
+    const itemId = req.body?.itemId;
+    const mode = req.body?.mode || 'give';
+
+    const item = (
+      catalog.items || []
+    ).find(x => x.id === itemId);
+
+    if (!item) {
+      return res.status(404).json({
+        error: 'Item not found'
+      });
+    }
+
+    const inventory = [
+      ...(player.inventory || [])
+    ].map(x => ({ ...x }));
+
+    const currency = {
+      ...(player.currency || {})
+    };
+
+    const existing = inventory.find(
+      x => x.itemId === item.id
+    );
+
+    if (
+      mode === 'sell' &&
+      item.price
+    ) {
+      const balance =
+        currency[item.price.currency] || 0;
+
+      if (balance < item.price.amount) {
+        return res.status(400).json({
+          error:
+            'Not enough ' +
+            item.price.currency
+        });
+      }
+
+      if (
+        item.repeatable === false &&
+        existing
+      ) {
+        return res.status(400).json({
+          error:
+            'Player already owns this item'
+        });
+      }
+
+      currency[item.price.currency] =
+        balance - item.price.amount;
+    }
+
+    if (existing) {
+      existing.quantity++;
+    } else {
+      inventory.push({
+        itemId: item.id,
+        name: item.name,
+        category: item.category,
+        quantity: 1
+      });
+    }
+
+    await pool.query(
+      `
+      UPDATE players
+      SET currency = $1,
+          inventory = $2
+      WHERE id = $3
+      `,
+      [
+        currency,
+        inventory,
+        player.id
+      ]
+    );
+
+    res.json({
+      ...playerObject(player),
+      currency,
+      inventory
     });
   }
+);
 
-  const catalog = {
-    currencies,
-    items
-  };
+app.delete(
+  '/api/players/:pid/inventory/:itemId',
+  async (req, res) => {
+    const player = await requirePlayer(
+      req.params.pid,
+      res
+    );
 
-  await setSetting('catalog', catalog);
+    if (!player) {
+      return;
+    }
 
-  res.json(catalog);
-});
+    const inventory = (
+      player.inventory || []
+    ).filter(
+      x => x.itemId !== req.params.itemId
+    );
 
-app.get('/api/admin/leaderboards', async (req, res) => {
+    await pool.query(
+      `
+      UPDATE players
+      SET inventory = $1
+      WHERE id = $2
+      `,
+      [
+        inventory,
+        player.id
+      ]
+    );
+
+    res.json({
+      ...playerObject(player),
+      inventory
+    });
+  }
+);
+
+app.get('/api/leaderboards', async (req, res) => {
   const result = await pool.query(
-    'SELECT name, entries FROM leaderboards ORDER BY name ASC'
+    `
+    SELECT name, entries
+    FROM leaderboards
+    ORDER BY name ASC
+    `
   );
 
   res.json(
@@ -623,8 +1038,10 @@ app.get('/api/admin/leaderboards', async (req, res) => {
   );
 });
 
-app.post('/api/admin/leaderboards', async (req, res) => {
-  const name = String(req.body?.name || '')
+app.post('/api/leaderboards', async (req, res) => {
+  const name = String(
+    req.body?.name || ''
+  )
     .trim()
     .toLowerCase()
     .replace(/\s+/g, '_');
@@ -637,8 +1054,14 @@ app.post('/api/admin/leaderboards', async (req, res) => {
 
   try {
     await pool.query(
-      'INSERT INTO leaderboards(name, entries) VALUES($1,$2)',
-      [name, []]
+      `
+      INSERT INTO leaderboards(name, entries)
+      VALUES($1, $2)
+      `,
+      [
+        name,
+        []
+      ]
     );
 
     res.status(201).json({
@@ -648,7 +1071,8 @@ app.post('/api/admin/leaderboards', async (req, res) => {
   } catch (error) {
     if (error.code === '23505') {
       return res.status(409).json({
-        error: 'Leaderboard already exists'
+        error:
+          'Leaderboard already exists'
       });
     }
 
@@ -656,70 +1080,180 @@ app.post('/api/admin/leaderboards', async (req, res) => {
   }
 });
 
-app.post('/api/admin/leaderboards/:name/scores', async (req, res) => {
-  const result = await pool.query(
-    'SELECT entries FROM leaderboards WHERE name = $1',
-    [req.params.name]
+app.put(
+  '/api/leaderboards/:name',
+  async (req, res) => {
+    if (!Array.isArray(req.body)) {
+      return res.status(400).json({
+        error: 'Array required'
+      });
+    }
+
+    const result = await pool.query(
+      `
+      UPDATE leaderboards
+      SET entries = $1
+      WHERE name = $2
+      RETURNING name, entries
+      `,
+      [
+        req.body,
+        req.params.name
+      ]
+    );
+
+    if (!result.rowCount) {
+      return res.status(404).json({
+        error: 'Leaderboard not found'
+      });
+    }
+
+    res.json(result.rows[0]);
+  }
+);
+
+app.post(
+  '/api/leaderboards/:name/scores',
+  async (req, res) => {
+    const result = await pool.query(
+      `
+      SELECT entries
+      FROM leaderboards
+      WHERE name = $1
+      `,
+      [req.params.name]
+    );
+
+    if (!result.rowCount) {
+      return res.status(404).json({
+        error: 'Leaderboard not found'
+      });
+    }
+
+    const username = String(
+      req.body?.username || ''
+    ).trim();
+
+    const score = Number(
+      req.body?.score
+    );
+
+    if (
+      !username ||
+      !Number.isFinite(score)
+    ) {
+      return res.status(400).json({
+        error: 'Invalid score'
+      });
+    }
+
+    const entry = {
+      username,
+      score,
+      timestamp: Date.now()
+    };
+
+    const entries = [
+      ...(result.rows[0].entries || []),
+      entry
+    ].sort(
+      (a, b) => b.score - a.score
+    );
+
+    await pool.query(
+      `
+      UPDATE leaderboards
+      SET entries = $1
+      WHERE name = $2
+      `,
+      [
+        entries,
+        req.params.name
+      ]
+    );
+
+    res.status(201).json(entry);
+  }
+);
+
+app.get('/api/title-data', async (req, res) => {
+  res.json(
+    await setting('titleData', {})
+  );
+});
+
+app.put('/api/title-data', async (req, res) => {
+  if (
+    !req.body ||
+    typeof req.body !== 'object' ||
+    Array.isArray(req.body)
+  ) {
+    return res.status(400).json({
+      error: 'Object required'
+    });
+  }
+
+  await setSetting(
+    'titleData',
+    req.body
   );
 
-  if (!result.rowCount) {
-    return res.status(404).json({
-      error: 'Leaderboard not found'
-    });
-  }
+  res.json(req.body);
+});
 
-  const username = String(
-    req.body?.username || ''
-  ).trim();
+app.get('/api/catalog', async (req, res) => {
+  res.json(
+    await setting(
+      'catalog',
+      DEFAULT_CATALOG
+    )
+  );
+});
 
-  const score = Number(req.body?.score);
+app.put('/api/catalog', async (req, res) => {
+  const currencies =
+    req.body?.currencies;
 
-  if (!username || !Number.isFinite(score)) {
+  const items =
+    req.body?.items;
+
+  if (
+    !Array.isArray(currencies) ||
+    !Array.isArray(items)
+  ) {
     return res.status(400).json({
-      error: 'Invalid score'
+      error:
+        'currencies and items arrays required'
     });
   }
 
-  const entry = {
-    username,
-    score,
-    timestamp: Date.now()
+  const catalog = {
+    currencies,
+    items
   };
 
-  const entries = [
-    ...(result.rows[0].entries || []),
-    entry
-  ].sort((a, b) => b.score - a.score);
-
-  await pool.query(
-    'UPDATE leaderboards SET entries = $1 WHERE name = $2',
-    [entries, req.params.name]
+  await setSetting(
+    'catalog',
+    catalog
   );
 
-  res.status(201).json(entry);
+  res.json(catalog);
+});
+
+app.post('/api/auth/reset', async (req, res) => {
+  await setSetting('auth', null);
+
+  res.json({
+    ok: true
+  });
 });
 
 app.use('/game', gameAuth);
 
-app.get('/game/health', async (req, res) => {
-  try {
-    await pool.query('SELECT 1');
-
-    res.json({
-      ok: true,
-      service: 'vault-game-api'
-    });
-  } catch {
-    res.status(503).json({
-      ok: false
-    });
-  }
-});
-
 app.post('/game/players', async (req, res) => {
   const username = req.body?.username;
 
-  if (!validUsername(username)) {
+  if (!validateName(username)) {
     return res.status(400).json({
       error: 'Invalid username'
     });
@@ -736,7 +1270,18 @@ app.post('/game/players', async (req, res) => {
   };
 
   await pool.query(
-    'INSERT INTO players(id, username, created_at, data, currency, inventory, banned) VALUES($1,$2,$3,$4,$5,$6,$7)',
+    `
+    INSERT INTO players(
+      id,
+      username,
+      created_at,
+      data,
+      currency,
+      inventory,
+      banned
+    )
+    VALUES($1,$2,$3,$4,$5,$6,$7)
+    `,
     [
       player.id,
       player.username,
@@ -751,173 +1296,242 @@ app.post('/game/players', async (req, res) => {
   res.status(201).json(player);
 });
 
-app.get('/game/players/:id', async (req, res) => {
-  const player = await getPlayer(req.params.id);
+app.get(
+  '/game/players/:pid',
+  async (req, res) => {
+    const player = await requirePlayer(
+      req.params.pid,
+      res
+    );
 
-  if (!player) {
-    return res.status(404).json({
-      error: 'Player not found'
+    if (player) {
+      res.json(playerObject(player));
+    }
+  }
+);
+
+app.put(
+  '/game/players/:pid',
+  async (req, res) => {
+    const player = await requirePlayer(
+      req.params.pid,
+      res
+    );
+
+    if (!player) {
+      return;
+    }
+
+    const data =
+      req.body?.data === undefined
+        ? player.data
+        : req.body.data;
+
+    await pool.query(
+      `
+      UPDATE players
+      SET data = $1
+      WHERE id = $2
+      `,
+      [
+        data,
+        player.id
+      ]
+    );
+
+    res.json({
+      ...playerObject(player),
+      data
     });
   }
+);
 
-  res.json(playerObject(player));
-});
+app.post(
+  '/game/players/:pid/currency',
+  async (req, res) => {
+    const player = await requirePlayer(
+      req.params.pid,
+      res
+    );
 
-app.put('/game/players/:id', async (req, res) => {
-  const player = await getPlayer(req.params.id);
+    if (!player) {
+      return;
+    }
 
-  if (!player) {
-    return res.status(404).json({
-      error: 'Player not found'
+    if (player.banned) {
+      return res.status(403).json({
+        error: 'Player is banned'
+      });
+    }
+
+    const code = req.body?.code;
+    const amount = Number(
+      req.body?.amount
+    );
+    const operation =
+      req.body?.operation || 'grant';
+
+    if (
+      !code ||
+      !Number.isInteger(amount) ||
+      amount <= 0 ||
+      !['grant', 'deduct'].includes(operation)
+    ) {
+      return res.status(400).json({
+        error: 'Invalid currency operation'
+      });
+    }
+
+    const currency = {
+      ...(player.currency || {})
+    };
+
+    currency[code] =
+      (currency[code] || 0) +
+      (
+        operation === 'deduct'
+          ? -amount
+          : amount
+      );
+
+    if (currency[code] < 0) {
+      return res.status(400).json({
+        error: 'Not enough balance'
+      });
+    }
+
+    await pool.query(
+      `
+      UPDATE players
+      SET currency = $1
+      WHERE id = $2
+      `,
+      [
+        currency,
+        player.id
+      ]
+    );
+
+    res.json({
+      ...playerObject(player),
+      currency
     });
   }
+);
 
-  const data =
-    req.body?.data === undefined
-      ? player.data
-      : req.body.data;
+app.get(
+  '/game/title-data',
+  async (req, res) => {
+    res.json(
+      await setting('titleData', {})
+    );
+  }
+);
 
-  await pool.query(
-    'UPDATE players SET data = $1 WHERE id = $2',
-    [data, player.id]
-  );
+app.get(
+  '/game/catalog',
+  async (req, res) => {
+    res.json(
+      await setting(
+        'catalog',
+        DEFAULT_CATALOG
+      )
+    );
+  }
+);
 
-  res.json({
-    ...playerObject(player),
-    data
-  });
-});
+app.get(
+  '/game/leaderboards/:name',
+  async (req, res) => {
+    const result = await pool.query(
+      `
+      SELECT entries
+      FROM leaderboards
+      WHERE name = $1
+      `,
+      [req.params.name]
+    );
 
-app.post('/game/players/:id/currency', async (req, res) => {
-  const player = await getPlayer(req.params.id);
+    if (!result.rowCount) {
+      return res.status(404).json({
+        error: 'Leaderboard not found'
+      });
+    }
 
-  if (!player) {
-    return res.status(404).json({
-      error: 'Player not found'
+    res.json({
+      name: req.params.name,
+      entries:
+        result.rows[0].entries || []
     });
   }
+);
 
-  if (player.banned) {
-    return res.status(403).json({
-      error: 'Player is banned'
-    });
+app.post(
+  '/game/leaderboards/:name/scores',
+  async (req, res) => {
+    const result = await pool.query(
+      `
+      SELECT entries
+      FROM leaderboards
+      WHERE name = $1
+      `,
+      [req.params.name]
+    );
+
+    if (!result.rowCount) {
+      return res.status(404).json({
+        error: 'Leaderboard not found'
+      });
+    }
+
+    const username = String(
+      req.body?.username || ''
+    ).trim();
+
+    const score = Number(
+      req.body?.score
+    );
+
+    if (
+      !username ||
+      !Number.isFinite(score)
+    ) {
+      return res.status(400).json({
+        error: 'Invalid score'
+      });
+    }
+
+    const entry = {
+      username,
+      score,
+      timestamp: Date.now()
+    };
+
+    const entries = [
+      ...(result.rows[0].entries || []),
+      entry
+    ].sort(
+      (a, b) => b.score - a.score
+    );
+
+    await pool.query(
+      `
+      UPDATE leaderboards
+      SET entries = $1
+      WHERE name = $2
+      `,
+      [
+        entries,
+        req.params.name
+      ]
+    );
+
+    res.status(201).json(entry);
   }
+);
 
-  const code = req.body?.code;
-  const amount = Number(req.body?.amount);
-  const operation = req.body?.operation || 'grant';
-
-  if (
-    !code ||
-    !Number.isInteger(amount) ||
-    amount <= 0 ||
-    !['grant', 'deduct'].includes(operation)
-  ) {
-    return res.status(400).json({
-      error: 'Invalid currency operation'
-    });
-  }
-
-  const currency = {
-    ...(player.currency || {})
-  };
-
-  currency[code] =
-    (currency[code] || 0) +
-    (operation === 'deduct' ? -amount : amount);
-
-  if (currency[code] < 0) {
-    return res.status(400).json({
-      error: 'Not enough balance'
-    });
-  }
-
-  await pool.query(
-    'UPDATE players SET currency = $1 WHERE id = $2',
-    [currency, player.id]
-  );
-
-  res.json({
-    ...playerObject(player),
-    currency
-  });
-});
-
-app.get('/game/catalog', async (req, res) => {
-  res.json(
-    await getSetting('catalog', {})
-  );
-});
-
-app.get('/game/title-data', async (req, res) => {
-  res.json(
-    await getSetting('titleData', {})
-  );
-});
-
-app.get('/game/leaderboards/:name', async (req, res) => {
-  const result = await pool.query(
-    'SELECT entries FROM leaderboards WHERE name = $1',
-    [req.params.name]
-  );
-
-  if (!result.rowCount) {
-    return res.status(404).json({
-      error: 'Leaderboard not found'
-    });
-  }
-
-  res.json({
-    name: req.params.name,
-    entries: result.rows[0].entries || []
-  });
-});
-
-app.post('/game/leaderboards/:name/scores', async (req, res) => {
-  const result = await pool.query(
-    'SELECT entries FROM leaderboards WHERE name = $1',
-    [req.params.name]
-  );
-
-  if (!result.rowCount) {
-    return res.status(404).json({
-      error: 'Leaderboard not found'
-    });
-  }
-
-  const username = String(
-    req.body?.username || ''
-  ).trim();
-
-  const score = Number(req.body?.score);
-
-  if (!username || !Number.isFinite(score)) {
-    return res.status(400).json({
-      error: 'Invalid score'
-    });
-  }
-
-  const entry = {
-    username,
-    score,
-    timestamp: Date.now()
-  };
-
-  const entries = [
-    ...(result.rows[0].entries || []),
-    entry
-  ].sort((a, b) => b.score - a.score);
-
-  await pool.query(
-    'UPDATE leaderboards SET entries = $1 WHERE name = $2',
-    [entries, req.params.name]
-  );
-
-  res.status(201).json(entry);
-});
-
-app.use((error, req, res, next) => {
-  console.error('Server error:', error);
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
 
   res.status(500).json({
     error: 'Internal server error'
@@ -930,9 +1544,11 @@ async function start() {
 
     await pool.query('SELECT 1');
 
-    console.log('PostgreSQL connected.');
+    console.log('PostgreSQL connection successful.');
 
-    await initializeDatabase();
+    await dbInit();
+
+    console.log('Database initialized.');
 
     app.listen(
       PORT,
@@ -954,3 +1570,4 @@ async function start() {
 }
 
 start();
+```
