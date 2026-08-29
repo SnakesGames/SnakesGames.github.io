@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: vault-api
+    runtime: node
+    plan: free
+    rootDir: vault-backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: vault-postgres
+          property: connectionString
+      - key: VAULT_SECRET
+        generateValue: true
+      - key: GAME_API_KEY
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+
+databases:
+  - name: vault-postgres
+    plan: free
+    region: ohio
