@@ -1,0 +1,59 @@
+{
+  "auth": {
+    "password": "a537ea1e1fe199b7fb8ecc2a1656eee3:23df2d632ad111b8cab9bbfa48ad56cb19bfaf75316802686416958fbd3224aa",
+    "createdAt": 1788042476088
+  },
+  "players": {
+    "p_85388474b2cb38": {
+      "id": "p_85388474b2cb38",
+      "username": "test",
+      "createdAt": 1788042494802,
+      "data": {},
+      "currency": {
+        "GOLD": 15346
+      },
+      "inventory": [],
+      "banned": false
+    }
+  },
+  "playerOrder": [
+    "p_85388474b2cb38"
+  ],
+  "leaderboards": {},
+  "lbOrder": [],
+  "titleData": {
+    "game_version": "1.0.0",
+    "maintenance_mode": "false"
+  },
+  "catalog": {
+    "currencies": [
+      {
+        "code": "GOLD",
+        "name": "Gold"
+      }
+    ],
+    "items": [
+      {
+        "id": "neon_skin",
+        "name": "Neon Skin",
+        "category": "Skin",
+        "price": {
+          "amount": 500,
+          "currency": "GOLD"
+        },
+        "repeatable": false
+      },
+      {
+        "id": "crown_hat",
+        "name": "Golden Crown",
+        "category": "Hat",
+        "price": {
+          "amount": 400,
+          "currency": "GEMS"
+        },
+        "repeatable": false
+      }
+    ]
+  },
+  "apiCalls": 3
+}
