@@ -32,6 +32,8 @@ app.get('/', (req, res) => {
   });
 });
 
+app.use(express.json({ limit: '1mb' }));
+
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map(x => x.trim())
@@ -50,8 +52,6 @@ app.use(cors({
     return callback(new Error('CORS origin not allowed'));
   }
 }));
-
-app.use(express.json({ limit: '1mb' }));
 
 const DEFAULT_CATALOG = {
   currencies: [
@@ -92,14 +92,18 @@ function hashPassword(value, salt = crypto.randomBytes(16).toString('hex')) {
 }
 
 function verifyPassword(value, stored) {
-  if (!stored || !stored.includes(':')) return false;
+  if (!stored || !stored.includes(':')) {
+    return false;
+  }
 
   const [salt, hash] = stored.split(':');
 
   try {
     const actual = crypto.scryptSync(value, salt, 32).toString('hex');
 
-    if (actual.length !== hash.length) return false;
+    if (actual.length !== hash.length) {
+      return false;
+    }
 
     return crypto.timingSafeEqual(
       Buffer.from(actual),
@@ -130,14 +134,18 @@ function adminAuth(req, res, next) {
   const authorization = req.headers.authorization || '';
 
   if (!authorization.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({
+      error: 'Unauthorized'
+    });
   }
 
   const token = authorization.slice(7);
   const parts = token.split('.');
 
   if (parts.length !== 2) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({
+      error: 'Unauthorized'
+    });
   }
 
   const [body, signature] = parts;
@@ -148,7 +156,9 @@ function adminAuth(req, res, next) {
     .digest('base64url');
 
   if (signature.length !== expected.length) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({
+      error: 'Unauthorized'
+    });
   }
 
   if (
@@ -157,7 +167,9 @@ function adminAuth(req, res, next) {
       Buffer.from(expected)
     )
   ) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({
+      error: 'Unauthorized'
+    });
   }
 
   try {
@@ -166,13 +178,17 @@ function adminAuth(req, res, next) {
     );
 
     if (!payload.exp || payload.exp < Date.now()) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({
+        error: 'Unauthorized'
+      });
     }
 
     req.user = payload.sub;
     next();
   } catch {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({
+      error: 'Unauthorized'
+    });
   }
 }
 
@@ -228,7 +244,9 @@ async function incrementCalls() {
 }
 
 function playerObject(row) {
-  if (!row) return null;
+  if (!row) {
+    return null;
+  }
 
   return {
     id: row.id,
@@ -316,7 +334,7 @@ async function dbInit() {
 }
 
 app.get('/', (req, res) => {
-  res.json({
+  res.status(200).json({
     ok: true,
     service: 'Snakes Games Vault API',
     status: 'online',
@@ -328,13 +346,15 @@ app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
 
-    res.json({
+    res.status(200).json({
       ok: true,
       service: 'vault',
       database: 'postgresql',
       time: new Date().toISOString()
     });
-  } catch {
+  } catch (error) {
+    console.error('Health check failed:', error);
+
     res.status(503).json({
       ok: false,
       error: 'Database unavailable'
@@ -480,7 +500,9 @@ app.get('/api/players', async (req, res) => {
 
   await incrementCalls();
 
-  res.json(result.rows.map(playerObject));
+  res.json(
+    result.rows.map(playerObject)
+  );
 });
 
 app.post('/api/players', async (req, res) => {
@@ -548,7 +570,9 @@ app.put('/api/players/:pid', async (req, res) => {
     res
   );
 
-  if (!player) return;
+  if (!player) {
+    return;
+  }
 
   const body = req.body || {};
 
@@ -622,7 +646,9 @@ app.delete('/api/players/:pid', async (req, res) => {
     res
   );
 
-  if (!player) return;
+  if (!player) {
+    return;
+  }
 
   await pool.query(
     'DELETE FROM players WHERE id = $1',
@@ -642,7 +668,9 @@ app.post('/api/players/:pid/ban', async (req, res) => {
     res
   );
 
-  if (!player) return;
+  if (!player) {
+    return;
+  }
 
   await pool.query(
     'UPDATE players SET banned = true WHERE id = $1',
@@ -661,7 +689,9 @@ app.post('/api/players/:pid/unban', async (req, res) => {
     res
   );
 
-  if (!player) return;
+  if (!player) {
+    return;
+  }
 
   await pool.query(
     'UPDATE players SET banned = false WHERE id = $1',
@@ -680,7 +710,9 @@ app.post('/api/players/:pid/currency', async (req, res) => {
     res
   );
 
-  if (!player) return;
+  if (!player) {
+    return;
+  }
 
   if (player.banned) {
     return res.status(403).json({
@@ -713,9 +745,11 @@ app.post('/api/players/:pid/currency', async (req, res) => {
 
   currency[code] =
     (currency[code] || 0) +
-    (operation === 'deduct'
-      ? -numberAmount
-      : numberAmount);
+    (
+      operation === 'deduct'
+        ? -numberAmount
+        : numberAmount
+    );
 
   if (currency[code] < 0) {
     return res.status(400).json({
@@ -740,7 +774,9 @@ app.post('/api/players/:pid/inventory', async (req, res) => {
     res
   );
 
-  if (!player) return;
+  if (!player) {
+    return;
+  }
 
   if (player.banned) {
     return res.status(403).json({
@@ -845,7 +881,9 @@ app.delete(
       res
     );
 
-    if (!player) return;
+    if (!player) {
+      return;
+    }
 
     const inventory = (
       player.inventory || []
@@ -1140,7 +1178,9 @@ app.put('/game/players/:pid', async (req, res) => {
     res
   );
 
-  if (!player) return;
+  if (!player) {
+    return;
+  }
 
   const data =
     req.body?.data === undefined
@@ -1166,7 +1206,9 @@ app.post(
       res
     );
 
-    if (!player) return;
+    if (!player) {
+      return;
+    }
 
     if (player.banned) {
       return res.status(403).json({
@@ -1320,7 +1362,7 @@ app.post(
 );
 
 app.use((err, req, res, next) => {
-  console.error(err);
+  console.error('Server error:', err);
 
   res.status(500).json({
     error: 'Internal server error'
@@ -1330,7 +1372,6 @@ app.use((err, req, res, next) => {
 async function start() {
   try {
     await dbInit();
-
     await pool.query('SELECT 1');
 
     app.listen(
