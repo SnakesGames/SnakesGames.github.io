@@ -23,6 +23,15 @@ const pool = new Pool({
 
 const app = express();
 
+app.get('/', (req, res) => {
+  res.json({
+    ok: true,
+    service: 'Snakes Games Vault API',
+    status: 'online',
+    version: '2.0.0'
+  });
+});
+
 const allowedOrigins = (process.env.CORS_ORIGINS || '')
   .split(',')
   .map(x => x.trim())
